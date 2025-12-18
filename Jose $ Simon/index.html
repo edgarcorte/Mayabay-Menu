@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jose & Simon | Order Online</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Urbanist:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Urbanist', sans-serif; background-color: #0f0f0f; color: #e5e5e5; }
+        .font-brand { font-family: 'Oswald', sans-serif; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .glass-panel { background: rgba(30, 30, 30, 0.6); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        html { scroll-behavior: smooth; }
+    </style>
+</head>
+<body class="pb-32 selection:bg-amber-500 selection:text-black">
+
+    <!-- Mobile Container Wrapper -->
+    <div class="max-w-md mx-auto min-h-screen bg-[#0f0f0f] shadow-2xl relative">
+
+        <!-- Header Section -->
+        <div class="relative bg-zinc-900 pb-6 pt-8 rounded-b-3xl shadow-2xl border-b border-zinc-800">
+            <div class="text-center px-4">
+                <!-- LOGO: Smart Loader tries multiple filenames -->
+                <img id="logo-img" src="logo.jpg" alt="Jose & Simon" class="h-24 mx-auto mb-4 object-contain drop-shadow-lg rounded-lg">
+                
+                <!-- DEBUGGER: Only shows if image fails -->
+                <div id="logo-debug" class="hidden text-red-500 text-xs mt-2 border border-red-500/20 bg-red-500/10 p-2 rounded text-left">
+                    <p class="font-bold">⚠️ Logo Not Found</p>
+                    <p id="debug-status" class="font-mono mt-1 text-zinc-400 text-[10px] leading-tight mb-2">...</p>
+                    
+                    <!-- File Picker to find the real name -->
+                    <div class="border-t border-red-500/20 pt-2">
+                        <p class="text-white mb-2 font-bold animate-pulse">👇 CLICK HERE TO FIX IT:</p>
+                        <input type="file" accept="image/*" onchange="fixLogo(this)" class="block w-full text-xs text-zinc-400 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-black hover:file:bg-amber-400 cursor-pointer">
+                    </div>
+                </div>
+
+                <!-- Auto-fix script for Logo -->
+                <script>
+                    const logoImg = document.getElementById('logo-img');
+                    const debugBox = document.getElementById('logo-debug');
+                    const debugStatus = document.getElementById('debug-status');
+                    
+                    // Tries these names in order if the first one fails
+                    const attempts = [
+                        'logo.jpg',
+                        'logo.JPG', // Case sensitive
+                        'logo.jpeg', 
+                        'logo.png', 
+                        'logo.jpg.jpg', // Common Windows double-extension error
+                        'Jose $ Simon.jpg', 
+                        'Jose%20$%20Simon.jpg',
+                        'Jose & Simon.jpg',
+                        'JoseAndSimon.jpg'
+                    ];
+                    let attemptIdx = 0;
+                    
+                    logoImg.onerror = function() {
+                        debugBox.classList.remove('hidden'); // Show debug box
+                        
+                        if (attemptIdx < attempts.length) {
+                            const nextName = attempts[attemptIdx];
+                            debugStatus.innerHTML = `Tried: ${this.src.split('/').pop()} <br>Trying: ${nextName}...`;
+                            
+                            // Try the next filename
+                            attemptIdx++;
+                            this.src = nextName;
+                        } else {
+                            debugStatus.innerHTML = `All automatic attempts failed.<br>Please select the file below manually.`;
+                            // Fallback to placeholder so layout doesn't break
+                            this.src = 'https://placehold.co/100x100/18181b/eab308?text=NO+LOGO';
+                            // Remove onerror to prevent infinite loop
+                            this.onerror = null; 
+                        }
+                    };
+
+                    function fixLogo(input) {
+                        if (input.files && input.files[0]) {
+                            const file = input.files[0];
+                            const reader = new FileReader();
+                            
+                            // Show the file they selected
+                            reader.onload = function(e) {
+                                logoImg.src = e.target.result;
+                                logoImg.onerror = null; // Stop the auto-loader
+                            };
+                            reader.readAsDataURL(file);
+                            
+                            // Tell them the real name
+                            setTimeout(() => {
+                                alert(`SUCCESS!\n\nYour computer sees this file as:\n"${file.name}"\n\nPlease rename it to "logo.jpg" to fix it permanently.`);
+                                debugBox.classList.add('hidden');
+                            }, 500);
+                        }
+                    }
+                </script>
+                
+                <h1 class="font-brand text-3xl text-amber-500 tracking-wider uppercase">Jose & Simon</h1>
+                <p class="text-zinc-500 text-sm tracking-widest uppercase mt-1">Resto Bar • Kerala Specials</p>
+                
+                <div class="mt-4 inline-block bg-amber-500/10 border border-amber-500/20 px-4 py-1 rounded-full">
+                    <span id="tableLabel" class="text-amber-500 font-bold text-sm">DETECTING TABLE...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Navigation (Sticky) -->
+        <div class="sticky top-0 z-40 bg-[#0f0f0f]/95 backdrop-blur-md py-4 border-b border-zinc-800/50 shadow-lg">
+            <div class="flex overflow-x-auto gap-3 px-4 scrollbar-hide pb-1" id="categoryNav">
+                <!-- Categories injected by JS -->
+            </div>
+        </div>
+
+        <!-- Menu Grid -->
+        <div id="menuContainer" class="p-4 space-y-10 mt-4">
+            <!-- Menu Items injected by JS -->
+        </div>
+
+        <!-- Floating Cart Bar -->
+        <div id="cartBar" class="fixed bottom-6 left-4 right-4 z-50 hidden transform transition-all duration-300 translate-y-20 max-w-md mx-auto">
+            <button onclick="toggleCart(true)" class="w-full bg-amber-500 text-black p-4 rounded-xl shadow-2xl flex justify-between items-center font-bold text-lg hover:bg-amber-400 transition-colors">
+                <div class="flex items-center gap-2">
+                    <span class="bg-black/20 px-3 py-1 rounded text-sm" id="cartCount">0</span>
+                    <span>View Order</span>
+                </div>
+                <span id="cartTotal">₹0</span>
+            </button>
+        </div>
+
+        <!-- Cart Modal -->
+        <div id="cartModal" class="fixed inset-0 z-[60] bg-black/95 hidden flex flex-col max-w-md mx-auto animate-[fadeIn_0.2s_ease-out]">
+            <div class="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900">
+                <h2 class="font-brand text-2xl text-amber-500">YOUR ORDER</h2>
+                <button onclick="toggleCart(false)" class="text-zinc-400 hover:text-white text-3xl">&times;</button>
+            </div>
+            
+            <div id="cartItems" class="flex-1 overflow-y-auto p-6 space-y-4">
+                <!-- Cart items injected here -->
+            </div>
+
+            <div class="p-6 bg-zinc-900 border-t border-zinc-800">
+                <div class="flex justify-between text-xl font-bold mb-6 text-white">
+                    <span>Grand Total</span>
+                    <span id="modalTotal" class="text-amber-500">₹0</span>
+                </div>
+                <button onclick="placeOrder()" id="placeOrderBtn" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-brand text-xl py-4 rounded-lg transition-colors uppercase tracking-wider font-bold">
+                    Confirm Order
+                </button>
+                <p class="text-center text-zinc-600 text-xs mt-3">Order sends directly to Kitchen Display</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- 1. FIREBASE CONFIGURATION ---
+        // REPLACE THIS OBJECT WITH YOUR REAL KEYS FROM CONSOLE.FIREBASE.GOOGLE.COM
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "SENDER_ID",
+            appId: "APP_ID"
+        };
+        
+        let db, auth;
+        let isFirebaseActive = false;
+
+        // Initialize Firebase safely
+        try {
+            if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+                isFirebaseActive = true;
+            } else {
+                console.warn("Firebase Keys Missing: App running in Offline/Demo Mode");
+            }
+        } catch (e) {
+            console.error("Firebase Init Error:", e);
+        }
+
+        // --- 2. MENU DATA ---
+        const MENU = [
+            { id: 'b1', cat: 'Bar Bites', name: 'Masala Peanuts', price: 120, type: 'veg' },
+            { id: 'b2', cat: 'Bar Bites', name: 'Spiced Cashew Fry', price: 220, type: 'veg' },
+            { id: 'b3', cat: 'Bar Bites', name: 'Kerala Banana Chips', price: 150, type: 'veg' },
+            { id: 'b4', cat: 'Bar Bites', name: 'Chilli Garlic Fries', price: 190, type: 'veg' },
+            { id: 'b5', cat: 'Bar Bites', name: 'Peri Peri Fries', price: 210, type: 'veg' },
+            { id: 'b6', cat: 'Bar Bites', name: 'Cheese Corn Nuggets', price: 240, type: 'veg' },
+            { id: 'b7', cat: 'Bar Bites', name: 'Chicken Popcorn', price: 260, type: 'non' },
+            { id: 'b8', cat: 'Bar Bites', name: 'Fish Fingers', price: 320, type: 'non' },
+            
+            { id: 'sv1', cat: 'Starters Veg', name: 'Paneer Tikka', price: 320, type: 'veg' },
+            { id: 'sv2', cat: 'Starters Veg', name: 'Malai Broccoli', price: 300, type: 'veg' },
+            { id: 'sv3', cat: 'Starters Veg', name: 'Crispy Gobi 65', price: 260, type: 'veg' },
+            
+            { id: 'sn1', cat: 'Starters Non-Veg', name: 'Chicken 65', price: 320, desc: 'Kerala Style', type: 'non' },
+            { id: 'sn2', cat: 'Starters Non-Veg', name: 'Pepper Chicken Fry', price: 350, type: 'non' },
+            { id: 'sn3', cat: 'Starters Non-Veg', name: 'Chicken Tikka', price: 360, type: 'non' },
+            { id: 'sn4', cat: 'Starters Non-Veg', name: 'Mutton Seekh Kebab', price: 420, type: 'non' },
+            { id: 'sn5', cat: 'Starters Non-Veg', name: 'Fish Tikka', price: 480, type: 'non' },
+            
+            { id: 'ks1', cat: 'Kerala Specials', name: 'Beef Fry', price: 420, desc: 'Signature', type: 'non' },
+            { id: 'ks2', cat: 'Kerala Specials', name: 'Kappa & Meen Curry', price: 390, type: 'non' },
+            { id: 'ks3', cat: 'Kerala Specials', name: 'Duck Roast', price: 480, type: 'non' },
+            { id: 'ks4', cat: 'Kerala Specials', name: 'Prawns Roast', price: 520, type: 'non' },
+            
+            { id: 'mn1', cat: 'Mains', name: 'Butter Chicken', price: 380, type: 'non' },
+            { id: 'mn2', cat: 'Mains', name: 'Paneer Butter Masala', price: 340, type: 'veg' },
+            { id: 'mn3', cat: 'Mains', name: 'Porotta', price: 40, type: 'veg' },
+            
+            { id: 'lq1', cat: 'Beers', name: 'Kingfisher Premium', price: 220, type: 'drink' },
+            { id: 'lq2', cat: 'Beers', name: 'Budweiser', price: 260, type: 'drink' },
+            { id: 'ck1', cat: 'Cocktails', name: 'Kerala Spice Mule', price: 420, type: 'drink' }
+        ];
+
+        // --- 3. APP LOGIC ---
+        let cart = {};
+        let currentTable = "Unknown";
+        let currentUser = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if(isFirebaseActive) initAuth();
+            detectTable();
+            renderMenu();
+        });
+
+        async function initAuth() {
+            try {
+                await auth.signInAnonymously();
+                auth.onAuthStateChanged((user) => { currentUser = user; });
+            } catch (error) { console.error(error); }
+        }
+
+        function detectTable() {
+            const params = new URLSearchParams(window.location.search);
+            const tableParam = params.get('table');
+            if (tableParam) {
+                currentTable = tableParam;
+                document.getElementById('tableLabel').innerText = `TABLE ${currentTable}`;
+            } else {
+                document.getElementById('tableLabel').innerText = "WALK-IN / BAR";
+                currentTable = "Walk-In";
+            }
+        }
+
+        function renderMenu() {
+            const categories = [...new Set(MENU.map(m => m.cat))];
+            
+            document.getElementById('categoryNav').innerHTML = categories.map(cat => 
+                `<button onclick="scrollToCat('${cat}')" class="whitespace-nowrap px-5 py-2 rounded-full border border-zinc-700 bg-zinc-800 text-zinc-300 text-sm font-bold uppercase tracking-wider hover:bg-amber-500 hover:text-black transition-all">${cat}</button>`
+            ).join('');
+
+            document.getElementById('menuContainer').innerHTML = categories.map(cat => `
+                <div id="cat-${cat.replace(/\s+/g, '')}" class="scroll-mt-36">
+                    <h3 class="text-amber-500 font-brand text-2xl mb-5 uppercase tracking-wide flex items-center gap-3">
+                        <span class="w-2 h-8 bg-amber-500 rounded-full"></span> ${cat}
+                    </h3>
+                    <div class="grid gap-4">
+                        ${MENU.filter(m => m.cat === cat).map(item => `
+                            <div class="glass-panel p-5 rounded-2xl flex justify-between items-center group">
+                                <div class="flex-1 pr-4">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        ${getTypeIcon(item.type)}
+                                        <span class="font-bold text-lg text-zinc-100 group-hover:text-amber-500">${item.name}</span>
+                                    </div>
+                                    ${item.desc ? `<p class="text-zinc-500 text-xs mb-2 pl-5">${item.desc}</p>` : ''}
+                                    <p class="text-zinc-300 font-mono pl-5 font-bold">₹${item.price}</p>
+                                </div>
+                                <button onclick="addToCart('${item.id}')" class="bg-zinc-800 active:bg-amber-500 active:text-black text-amber-500 border border-amber-500/30 w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-lg active:scale-90">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getTypeIcon(type) {
+            let color = type === 'veg' ? 'green' : type === 'non' ? 'red' : 'blue';
+            return `<div class="w-4 h-4 rounded-sm border border-${color}-500 flex items-center justify-center flex-shrink-0"><div class="w-2 h-2 rounded-full bg-${color}-500"></div></div>`;
+        }
+
+        function scrollToCat(cat) {
+            document.getElementById(`cat-${cat.replace(/\s+/g, '')}`).scrollIntoView({behavior: 'smooth', block: 'start'});
+        }
+
+        function addToCart(id) {
+            cart[id] = (cart[id] || 0) + 1;
+            updateCartUI();
+        }
+
+        function removeFromCart(id) {
+            if(cart[id] > 1) cart[id]--; else delete cart[id];
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const totalQty = Object.values(cart).reduce((a,b) => a+b, 0);
+            const totalPrice = Object.entries(cart).reduce((acc, [id, qty]) => {
+                const item = MENU.find(m => m.id === id);
+                return acc + (item.price * qty);
+            }, 0);
+
+            const bar = document.getElementById('cartBar');
+            if (totalQty > 0) {
+                bar.classList.remove('hidden', 'translate-y-20');
+                document.getElementById('cartCount').innerText = totalQty;
+                document.getElementById('cartTotal').innerText = `₹${totalPrice}`;
+            } else {
+                bar.classList.add('translate-y-20');
+                setTimeout(() => bar.classList.add('hidden'), 300);
+            }
+
+            document.getElementById('cartItems').innerHTML = Object.entries(cart).map(([id, qty]) => {
+                const item = MENU.find(m => m.id === id);
+                return `
+                    <div class="flex justify-between items-center bg-zinc-800/50 p-4 rounded-xl border border-zinc-700">
+                        <div><p class="font-bold text-zinc-200">${item.name}</p><p class="text-amber-500 text-sm">₹${item.price * qty}</p></div>
+                        <div class="flex items-center bg-black rounded-lg border border-zinc-700">
+                            <button onclick="removeFromCart('${id}')" class="px-3 py-1 text-zinc-400">-</button>
+                            <span class="px-2 font-mono text-white font-bold">${qty}</span>
+                            <button onclick="addToCart('${id}')" class="px-3 py-1 text-amber-500">+</button>
+                        </div>
+                    </div>`;
+            }).join('');
+            
+            document.getElementById('modalTotal').innerText = `₹${totalPrice}`;
+        }
+
+        function toggleCart(show) {
+            const modal = document.getElementById('cartModal');
+            if(show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
+        }
+
+        async function placeOrder() {
+            if (!isFirebaseActive) {
+                alert("DEMO MODE: Firebase Keys are missing in the code.\n\nThe UI works, but the order won't reach the kitchen until you add the API Keys.");
+                return;
+            }
+            if (!currentUser) return alert("Connecting...");
+
+            const btn = document.getElementById('placeOrderBtn');
+            btn.innerHTML = 'SENDING...';
+            btn.disabled = true;
+
+            const orderPayload = {
+                tableId: currentTable,
+                userId: currentUser.uid,
+                items: Object.entries(cart).map(([id, qty]) => {
+                    const item = MENU.find(m => m.id === id);
+                    return { name: item.name, qty: qty, price: item.price };
+                }),
+                total: Object.entries(cart).reduce((acc, [id, qty]) => acc + (MENU.find(m => m.id === id).price * qty), 0),
+                status: 'pending',
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                await db.collection('jose_simon_orders').add(orderPayload);
+                cart = {};
+                updateCartUI();
+                toggleCart(false);
+                alert("Order Sent to Kitchen!");
+            } catch (error) {
+                console.error(error);
+                alert("Error sending order.");
+            } finally {
+                btn.innerHTML = 'Confirm Order';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
